@@ -424,9 +424,11 @@
     html{scroll-padding-top:4.5rem;}
     body{min-width:0;}
     .wrap{width:100%; max-width:100%; padding:0 0.9rem;}
-    header.nav{display:flex; padding:0.85rem 0.9rem; justify-content:center;}
-    nav.links.nav-mobile-hide{display:none;}
-    .logo{width:auto; min-width:0; justify-content:center; gap:0.5rem; font-size:0.9rem; line-height:1;}
+    header.nav{display:flex; padding:0.65rem 0.75rem; justify-content:center;}
+    .logo{display:none;}
+    nav.links.nav-mobile-hide{display:flex; width:100%; justify-content:center; flex-wrap:wrap; gap:0.45rem 0.8rem; font-size:0.58rem; letter-spacing:0.04em;}
+    nav.links a:not(.pill-btn){padding:0.25em 0;}
+    nav.links .pill-btn{margin-top:0.1rem;}
     .logo em{font-size:0.68rem; white-space:nowrap;}
     .hero{
       min-height:86svh; justify-content:flex-end;
