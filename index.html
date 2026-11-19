@@ -1243,7 +1243,7 @@ function openSheet(key){
     f.addEventListener('pointermove',aim);
     f.addEventListener('click',function(e){aim(e);f.classList.remove('fired');void f.offsetWidth;f.classList.add('fired');clearTimeout(f._t);f._t=setTimeout(function(){f.classList.remove('fired')},2600)});});
   scrolly=body.querySelector('.fx-scrolly');scrollyTick();
-  if(d.pip) say(d.pip);
+  if(d.pip) react(d.pip);
   setTimeout(function(){document.getElementById('fxClose').focus({preventScroll:true})},60);
 }
 var scrolly=null;
@@ -1324,9 +1324,11 @@ if(!reduce&&'IntersectionObserver' in window){
 var bubble=document.getElementById('fxBubble'),pipBox=document.getElementById('fxPip'),muted=false,lastLine='';
 var touchy=matchMedia('(hover: none)').matches,hideT=null;
 /* every line stays up long enough to read; only fast clicking can cut it short */
-var holdUntil=0,pendT=null,pendTimer=null,clickT=0,zoomingNow=false;
+var holdUntil=0,pendT=null,pendTimer=null,clickT=0,zoomingNow=false,reactNow=false;
+/* things you DO (hover, scroll to a section, click) get an instant reply; idle chatter waits its turn */
+function react(t){reactNow=true;say(t);reactNow=false;}
 function readTime(t){return Math.min(6500,1800+t.length*55);}
-function say(t){if(muted||t===lastLine)return;var now=performance.now(),urgent=zoomingNow||now-clickT<450;
+function say(t){if(muted||t===lastLine)return;var now=performance.now(),urgent=reactNow||zoomingNow||now-clickT<450;
   if(!urgent&&now<holdUntil){pendT=t;clearTimeout(pendTimer);pendTimer=setTimeout(function(){var x=pendT;pendT=null;if(x)say(x);},holdUntil-now+20);return;}
   pendT=null;clearTimeout(pendTimer);lastLine=t;holdUntil=now+readTime(t);bubble.classList.add('hide');clearTimeout(hideT);setTimeout(function(){bubble.textContent=t;bubble.classList.remove('hide');if(touchy)hideT=setTimeout(function(){bubble.classList.add('hide')},readTime(t)+600);},180);}
 var LINES=[['.hero','Hi!! I\'m a slime. Fatima designs, draws, codes and directs. I mostly just jiggle.'],['#results','These numbers are real. I checked. With my eyes. I have two.'],['#work','her work!! emails, creators, websites, shoots. click a card, I dare you.'],['#process','Thirty hours of drawing in ten seconds. I can\'t even hold a pencil.'],['#now','what she\'s working on right now. fresh out the oven. careful, it\'s hot.'],['#services','Shopify pages, AI shoots, Klaviyo. She\'s good. I\'m biased. And green.'],['#about','Psychology degree. She knows why you buy things. She knows why I\'m sticky.'],['#contact','Email her. Do it. I\'ll wait. I\'m a slime, I have time.']];
@@ -1336,7 +1338,7 @@ var REVIVE=['jk I\'m fine','I\'m back. did you miss me','that was a test. you fa
 var BORED=['*hums elevator music*','I\'ve been staring at this portfolio all day. it\'s good.','is anyone gonna hire her or','you scroll, I jiggle. teamwork.','*does a little spin for no reason*','I\'m not sticky. you\'re sticky.','do you think I have a skeleton. be honest.','if I stand very still I\'m a gummy bear'];
 var HOV={'Storytelling Email + Sign-Up Form':'she ditched fancy emails for plain-text stories. opens went UP. wild.','Gifted Creator Program':'she got creators to actually post. for free. witchcraft.','Animated Shopify Website':'she designed AND coded this website. show-off.','Interactive Landing Page':'a landing page that answers your doubts before you even have them','Family Lifestyle AI Shoot':'a whole family photoshoot. made with AI. nobody had to say cheese.','Alt Bar Thematic Shoot':'a goth bar shoot. moody. like me on a Monday.','Instagram Carousels':'swipe swipe swipe. big loud type. you WILL stop scrolling.','Matcha Recipe Book':'a recipe book made with real creators. I can\'t cook. no hands.','Recipe Book Sign-Up Form':'one easy question, then your email. sneaky smart.','HTML Email Build':'a hand-coded email. she typed every tag. with her fingers.','How It Works GIFs':'GIFs that explain the product faster than I can blink. I can\'t blink.','Wehshi Lab Stickers':'stickers!! I want to be a sticker when I grow up','Animevania Key Visual':'a neon anime city. I\'d live there. rent is probably crazy.','Online Pharmacy Campaign':'a medicine delivery ad. the doctor has a scooter. iconic.','Perch Banners':'banners for desk chairs. sit down for this one.','Skatepark Pakistan':'a skatepark poster. I can\'t skate. no legs. no board. no hope.'};
 
-if('IntersectionObserver' in window){var sio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var hit=LINES.filter(function(l){return e.target.matches(l[0])})[0];if(hit)say(hit[1]);}})},{threshold:.35});
+if('IntersectionObserver' in window){var sio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var hit=LINES.filter(function(l){return e.target.matches(l[0])})[0];if(hit)react(hit[1]);}})},{threshold:.35});
   LINES.forEach(function(l){var el=document.querySelector(l[0]);if(el)sio.observe(el)});}
 var cv=document.getElementById('fxPipCanvas');
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
@@ -1405,11 +1407,12 @@ if(window.THREE&&THREE.GLTFLoader){
     if(anger>=4){doFaint(pick(FAINT));return;}
     quip(pick(MAD[anger-1]));shake=Math.max(shake,.5+anger*.3);
     act(function(){if(anger>=3){pick([MOVES.tornado,function(){hop(6)},MOVES.headbang])();}else{pick([function(){sqv+=12},MOVES.wiggle,MOVES.sneeze])();}});};
-  cv.addEventListener('pointerenter',function(){hoverOn=true;if(!faint)quip(pick(['hi hello hi','don\'t you dare click me','I see you','personal space please','careful. I\'m moist.']));});
+  cv.addEventListener('pointerenter',function(){hoverOn=true;if(!faint){lastLine='';react(pick(['hi hello hi','don\'t you dare click me','I see you','personal space please','careful. I\'m moist.']));}});
   cv.addEventListener('pointerleave',function(){hoverOn=false;});
-  addEventListener('scroll',function(){var y=scrollY;scrollV=Math.min(60,Math.abs(y-lastScroll));lastScroll=y;lastAct=performance.now();if(reduce||!acts.walk||faint)return;if(cur===acts.idle)play('walk');clearTimeout(window.__st);window.__st=setTimeout(function(){if(cur===acts.walk)play('idle')},220);if(!touchy&&scrollV>45&&Math.random()<.06)quip(pick(['wheeeee','slow down I\'m getting dizzy','AAAAA','too fast!! I\'m a liquid!!']));},{passive:true});
-  addEventListener('pointermove',function(e){cx=e.clientX;cy=e.clientY;mx=e.clientX/innerWidth*2-1;my=e.clientY/innerHeight*2-1});
-  setInterval(function(){if(reduce||document.hidden||faint)return;if(Math.random()<.7)act(pick(TRICKS));if(performance.now()-lastAct>9000&&Math.random()<.4)quip(pick(BORED));},4100);
+  addEventListener('scroll',function(){var y=scrollY;scrollV=Math.min(60,Math.abs(y-lastScroll));lastScroll=y;lastAct=performance.now();if(reduce||!acts.walk||faint)return;if(cur===acts.idle)play('walk');clearTimeout(window.__st);window.__st=setTimeout(function(){if(cur===acts.walk)play('idle')},220);if(!touchy&&scrollV>45&&Math.random()<.06)react(pick(['wheeeee','slow down I\'m getting dizzy','AAAAA','too fast!! I\'m a liquid!!']));},{passive:true});
+  addEventListener('pointermove',function(e){if(Math.abs(e.clientX-cx)+Math.abs(e.clientY-cy)>40)lastAct=performance.now();cx=e.clientX;cy=e.clientY;mx=e.clientX/innerWidth*2-1;my=e.clientY/innerHeight*2-1});
+  /* while people are interacting he just reacts; once they pause, the silly stuff starts */
+  setInterval(function(){if(reduce||document.hidden||faint)return;var idle=performance.now()-lastAct;if(idle<3000)return;act(pick(TRICKS));if(idle>5000&&Math.random()<.6)quip(pick(BORED));},4100);
   /* narrates whatever you hover */
   var hovEl=null,hovTimer=null;
   function explain(el){
@@ -1423,7 +1426,7 @@ if(window.THREE&&THREE.GLTFLoader){
     var im=el.closest('img');if(im&&im.alt)return im.alt.split(',')[0].toLowerCase()+'. she made that. I made nothing.';
     var h=el.closest('h1,h2');if(h)return 'a very big title. I\'m reading it with my whole body.';
     return null;}
-  document.addEventListener('mouseover',function(e){if(faint||muted)return;var el=e.target;if(el===cv||el.closest('.fx-pip'))return;var c=el.closest('.work-card,.service-card,.kpi,a,button,img,video,.frame,h1,h2');if(!c||c===hovEl)return;hovEl=c;clearTimeout(hovTimer);hovTimer=setTimeout(function(){var t=explain(c);if(t){lastAct=performance.now();quip(t);}},380);});
+  document.addEventListener('mouseover',function(e){if(faint||muted)return;var el=e.target;if(el===cv||el.closest('.fx-pip'))return;var c=el.closest('.work-card,.service-card,.kpi,a,button,img,video,.frame,h1,h2');if(!c||c===hovEl)return;hovEl=c;clearTimeout(hovTimer);hovTimer=setTimeout(function(){var t=explain(c);if(t){lastAct=performance.now();lastLine='';react(t);}},160);});
   function size(){var w=cv.clientWidth,h=cv.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
   size();addEventListener('resize',size);
   var clk=new THREE.Clock(),red=new THREE.Color(0xE0312B);
