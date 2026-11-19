@@ -1304,7 +1304,7 @@ if(!reduce&&'IntersectionObserver' in window){
 var bubble=document.getElementById('fxBubble'),pipBox=document.getElementById('fxPip'),muted=false,lastLine='';
 var touchy=matchMedia('(hover: none)').matches,hideT=null;
 function say(t){if(muted||t===lastLine)return;lastLine=t;bubble.classList.add('hide');clearTimeout(hideT);setTimeout(function(){bubble.textContent=t;bubble.classList.remove('hide');if(touchy)hideT=setTimeout(function(){bubble.classList.add('hide')},3800);},180);}
-var LINES=[['.hero','Hi!! I\'m a slime. Fatima designs, draws, codes and directs. I mostly just jiggle.'],['#results','These numbers are real. I checked. With my eyes. I have two.'],['#work','her work!! emails, creators, websites, shoots. click a card, I dare you.'],['#process','Thirty hours of drawing in ten seconds. I can\'t even hold a pencil.'],['#now','Linda and Gary are coming. Two fish, one actor, zero explanations.'],['#services','Shopify pages, AI shoots, Klaviyo. She\'s good. I\'m biased. And green.'],['#about','Psychology degree. She knows why you buy things. She knows why I\'m sticky.'],['#contact','Email her. Do it. I\'ll wait. I\'m a slime, I have time.']];
+var LINES=[['.hero','Hi!! I\'m a slime. Fatima designs, draws, codes and directs. I mostly just jiggle.'],['#results','These numbers are real. I checked. With my eyes. I have two.'],['#work','her work!! emails, creators, websites, shoots. click a card, I dare you.'],['#process','Thirty hours of drawing in ten seconds. I can\'t even hold a pencil.'],['#now','what she\'s working on right now. fresh out the oven. careful, it\'s hot.'],['#services','Shopify pages, AI shoots, Klaviyo. She\'s good. I\'m biased. And green.'],['#about','Psychology degree. She knows why you buy things. She knows why I\'m sticky.'],['#contact','Email her. Do it. I\'ll wait. I\'m a slime, I have time.']];
 var MAD=[['hey.','excuse me?','ow. rude.','who keeps touching me'],['HEY. stop.','I\'m telling Fatima','I am NOT a stress ball','do that again and see what happens'],['I\'m literally a slime what do you WANT','I bite. (I don\'t have teeth) (I\'ll figure it out)','my therapist will hear about this','you\'re on thin ice. I\'m on a portfolio.'],['THAT\'S IT.','I\'m so mad I\'m turning red','*aggressive jiggling*','I have NEVER been so disrespected']];
 var FAINT=['oh no... the clicking... it\'s too much...','tell Fatima... she was a great designer...','*dramatically faints*','I see a light... it\'s a hover state...','goodbye cruel portfolio'];
 var REVIVE=['jk I\'m fine','I\'m back. did you miss me','that was a test. you failed.','resurrected. still mad.'];
@@ -1346,7 +1346,21 @@ if(window.THREE&&THREE.GLTFLoader){
   function hop(h){if(jy<=0.001){jv=h||5.2;sqv-=6;}}
   function doFaint(line){lastMove=performance.now()+3500;faint=1;faintT=0;if(acts.death)play('death',true);quip(line||pick(FAINT));
     setTimeout(function(){faint=0;anger=0;hop(7);quip(pick(REVIVE));},3600);}
-  var TRICKS=[function(){hop(6.5);spinT=Math.PI*2;},function(){hop(4.5);},function(){shake=1.2;},function(){puff=1;setTimeout(function(){quip('achoo!! sorry. allergic to good design.')},350)},function(){spinT=Math.PI*4;quip('wheeeee');},function(){doFaint(pick(['*faints for no reason*','I\'m just gonna lie down for a sec','the vibes are too strong... *faints*']));},function(){doFaint();}];
+  /* silly moves: each one is a little animation curve that runs once */
+  var mv=null;function move(name,dur,fn,line,lineAt){mv={t:0,d:dur,f:fn};if(line){if(lineAt)setTimeout(function(){quip(line)},lineAt*1000);else quip(line);}}
+  function ease(p){return p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2}
+  var MOVES={
+    sneeze:function(){move('sneeze',1.6,function(p){var o={};if(p<.45){var k=p/.45;o.sx=1+k*.25;o.sy=1+k*.35;o.rx=-k*.5;}else{var k=(p-.45)/.55,b=Math.exp(-k*5);o.rx=.9*b*Math.cos(k*14);o.dz=-.9*b;o.dy=.25*Math.sin(Math.min(1,k*3)*Math.PI);o.sx=1-.25*b;o.sy=1-.3*b;o.dx=Math.sin(k*60)*.08*b;}return o;},'ah... ahh...');setTimeout(function(){quip(pick(['ACHOO!!','ACHOO!! sorry. allergic to good design.','*sneezes so hard I moved*']));},700);},
+    wiggle:function(){move('wiggle',2.4,function(p){var s=Math.sin(p*Math.PI*8),e=Math.sin(p*Math.PI);return {dx:s*.35*e,rz:-s*.35*e,ry:s*.5*e,dy:Math.abs(s)*.15*e}},pick(['*wiggle wiggle*','I call this one "the jelly"','dance break!!']));},
+    melt:function(){move('melt',2.6,function(p){var k=p<.4?ease(p/.4):p<.7?1:1-ease((p-.7)/.3);return {sy:1-k*.65,sx:1+k*.45,dy:-k*.15}},'I\'m meltiiiiing');setTimeout(function(){hop(7);quip('jk. solid again.')},2500);},
+    backflip:function(){hop(8.5);move('flip',1.1,function(p){return {rx:-ease(p)*Math.PI*2}},'watch this');setTimeout(function(){quip(pick(['nailed it','10/10','did you see that??']))},1100);},
+    moonwalk:function(){move('moon',3,function(p){var e=Math.sin(p*Math.PI);return {dx:Math.sin(p*Math.PI*2)*.5*e+(p<.5?-p:-(1-p))*.4,ry:-1.2*e,dy:Math.abs(Math.sin(p*Math.PI*10))*.06}},'*moonwalks*');},
+    hiccup:function(){move('hic',2.4,function(p){var k=(p*3)%1,b=k<.25?Math.sin(k/.25*Math.PI):0;return {dy:b*.28,sy:1+b*.18,sx:1-b*.1}},'hic!');setTimeout(function(){quip('hic! hic!!')},900);setTimeout(function(){quip('ok it stopped. hic.')},2000);},
+    peek:function(){move('peek',3,function(p){var k=p<.25?ease(p/.25):p<.7?1:1-ease((p-.7)/.3);return {dy:-k*1.15,rz:p>.3&&p<.65?Math.sin((p-.3)*30)*.15:0}},'*hides*');setTimeout(function(){quip('...is it safe?')},1300);},
+    headbang:function(){move('bang',2,function(p){var e=Math.sin(p*Math.PI);return {rx:Math.abs(Math.sin(p*Math.PI*7))*.6*e,dy:Math.abs(Math.sin(p*Math.PI*7))*.08*e}},pick(['*headbangs to elevator music*','this song SLAPS']));},
+    tornado:function(){spinT=Math.PI*6;move('torn',1.4,function(p){var e=Math.sin(p*Math.PI);return {sy:1+e*.4,sx:1-e*.25,dy:e*.3}},'wheeeeeee');}
+  };
+  var TRICKS=[MOVES.sneeze,MOVES.sneeze,MOVES.wiggle,MOVES.melt,MOVES.backflip,MOVES.moonwalk,MOVES.hiccup,MOVES.peek,MOVES.headbang,MOVES.tornado,function(){doFaint(pick(['*faints for no reason*','I\'m just gonna lie down for a sec','the vibes are too strong... *faints*']));},function(){doFaint();}];
   var _say=say;say=function(t){var before=lastLine;_say(t);if(lastLine!==before&&!reduce)act(function(){hop(5);if(acts.attack)play('attack',true);});};
   /* click him a bunch and he gets the zoomies. third time, he texts Fatima for you */
   var clicks=[],zooming=false,zoomCount=0,WA='https://wa.me/923034440244?text='+encodeURIComponent('Hi Fatima! We are unhealthily obsessed with your slime friend, so we\'re gonna give you a job. (the portfolio is pretty good too I guess)');
@@ -1365,7 +1379,7 @@ if(window.THREE&&THREE.GLTFLoader){
     anger=Math.min(4,anger+1);angerT=performance.now();
     if(anger>=4){doFaint(pick(FAINT));return;}
     quip(pick(MAD[anger-1]));shake=Math.max(shake,.5+anger*.3);
-    act(function(){if(anger>=3){hop(6);}else{sqv+=12;}});};
+    act(function(){if(anger>=3){pick([MOVES.tornado,function(){hop(6)},MOVES.headbang])();}else{pick([function(){sqv+=12},MOVES.wiggle,MOVES.sneeze])();}});};
   cv.addEventListener('pointerenter',function(){hoverOn=true;if(!faint)quip(pick(['hi hello hi','don\'t you dare click me','I see you','personal space please','careful. I\'m moist.']));});
   cv.addEventListener('pointerleave',function(){hoverOn=false;});
   addEventListener('scroll',function(){var y=scrollY;scrollV=Math.min(60,Math.abs(y-lastScroll));lastScroll=y;lastAct=performance.now();if(reduce||!acts.walk||faint)return;if(cur===acts.idle)play('walk');clearTimeout(window.__st);window.__st=setTimeout(function(){if(cur===acts.walk)play('idle')},220);if(!touchy&&scrollV>45&&Math.random()<.06)quip(pick(['wheeeee','slow down I\'m getting dizzy','AAAAA','too fast!! I\'m a liquid!!']));},{passive:true});
@@ -1404,12 +1418,13 @@ if(window.THREE&&THREE.GLTFLoader){
       var breathe=Math.sin(T*3.1)*.035+(hoverOn?Math.sin(T*24)*.035:0)+(anger?Math.sin(T*30)*.02*anger:0);
       var ys=1+breathe+sq*.06+stretch+puff*.25,xs=1-breathe*.7-sq*.05-stretch*.6+puff*.25;
       var e=faintT*faintT*(3-2*faintT);
-      slime.scale.set(xs*(1+e*.15),ys*(1-e*.45),xs);
-      slime.position.y=jy*.18-e*.15;
-      slime.position.x=Math.sin(T*40)*.06*shake+e*.25;
-      slime.rotation.y=(yaw+spin)*(1-e)+e*.3;
-      tilt+=((pitch+Math.min(.3,scrollV*.005))-tilt)*.15;slime.rotation.x=tilt*(1-e);
-      slime.rotation.z=Math.sin(T*1.7)*.05*(1-e)-e*1.35;
+      var o={};if(mv&&!faint){mv.t+=dt;var mp=Math.min(1,mv.t/mv.d);o=mv.f(mp)||{};if(mp>=1)mv=null;}
+      slime.scale.set(xs*(1+e*.15)*(o.sx||1),ys*(1-e*.45)*(o.sy||1),xs*(o.sx||1));
+      slime.position.y=jy*.18-e*.15+(o.dy||0);slime.position.z=(o.dz||0);
+      slime.position.x=Math.sin(T*40)*.06*shake+e*.25+(o.dx||0);
+      slime.rotation.y=(yaw+spin+(o.ry||0))*(1-e)+e*.3;
+      tilt+=((pitch+Math.min(.3,scrollV*.005))-tilt)*.15;slime.rotation.x=(tilt+(o.rx||0))*(1-e);
+      slime.rotation.z=(Math.sin(T*1.7)*.05+(o.rz||0))*(1-e)-e*1.35;
       scrollV*=.9;}
     R.render(sc,cam);requestAnimationFrame(loop);})();
 }
