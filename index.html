@@ -1025,3 +1025,394 @@
     }
   })();
 </script>
+
+<!-- ===== Preview add-on: in-page project sheets, process video, peeks, count-ups, Pip ===== -->
+<style>
+  .fx-sheet{position:fixed;inset:0;z-index:300;background:var(--bg);overflow-y:auto;transform:translateY(100%);visibility:hidden;transition:transform .5s cubic-bezier(.2,.8,.2,1),visibility 0s .5s;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .fx-sheet.open{transform:none;visibility:visible;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+  .fx-bar{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line)}
+  .fx-in{max-width:1180px;margin:0 auto;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+  .fx-bar .fx-in{display:flex;align-items:center;gap:12px;padding-block:14px}
+  .fx-crumb{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fx-btn{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--ink);background:transparent;color:var(--ink);padding:9px 14px;border-radius:999px;cursor:pointer}
+  .fx-btn.solid{background:var(--ink);color:var(--bg)}
+  .fx-btn:focus-visible,.fx-body button:focus-visible{outline:3px solid var(--flash);outline-offset:3px}
+  .fx-body{padding-block:36px 90px;display:flex;flex-direction:column;gap:30px}
+  .fx-head{display:grid;grid-template-columns:1.3fr .7fr;gap:30px;align-items:end}
+  .fx-head h2{font-family:var(--font-display);font-size:clamp(2rem,5vw,3.6rem);line-height:.95;margin:.3em 0 0;text-transform:uppercase}
+  .fx-head p{font-family:var(--font-serif);font-size:1.15rem;line-height:1.5;margin:14px 0 0;max-width:58ch;color:var(--ink)}
+  .fx-tag{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--flash)}
+  .fx-facts{display:flex;flex-direction:column;gap:12px}
+  .fx-facts b{display:block;font-family:var(--font-display);font-size:2.2rem;line-height:1;color:var(--matcha)}
+  .fx-facts span{font-size:.92rem;color:var(--ink-soft)}
+  .fx-media{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .fx-media.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+  .fx-media img{width:100%;display:block;border-radius:10px;cursor:zoom-in;background:var(--surface-2)}
+  .fx-tall{max-height:680px;overflow-y:auto;border-radius:10px;border:1px solid var(--line)}
+  .fx-tall img{border-radius:0;cursor:default}
+  .fx-wall{columns:4 210px;column-gap:14px}
+  .fx-wall button{display:block;width:100%;margin:0 0 14px;padding:0;border:0;background:none;cursor:zoom-in;break-inside:avoid;perspective:700px}
+  .fx-wall img{width:100%;display:block;border-radius:8px;transition:transform .15s ease-out}
+  .fx-tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .fx-tier{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px}
+  .fx-tier h3{font-family:var(--font-cond);font-size:1.3rem;margin:0;text-transform:uppercase}
+  .fx-tier .p{font-family:var(--font-display);font-size:1.9rem;color:var(--matcha)}
+  .fx-tier ul{margin:0;padding-left:18px;font-size:.92rem;color:var(--ink-soft)}
+  .fx-next{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:24px}
+  .fx-lb{position:fixed;inset:0;z-index:400;background:rgba(15,15,12,.95);display:grid;place-items:center;visibility:hidden;opacity:0;transition:opacity .2s}
+  .fx-lb.open{visibility:visible;opacity:1}
+  .fx-lbf{max-width:min(92vw,1100px);max-height:80vh;overflow:hidden;border-radius:6px;cursor:zoom-in}
+  .fx-lbf.zoom{cursor:zoom-out}
+  .fx-lbf img{display:block;max-width:min(92vw,1100px);max-height:80vh;transition:transform .2s ease-out;transform-origin:var(--ox,50%) var(--oy,50%)}
+  .fx-lbf.zoom img{transform:scale(2.6)}
+  .fx-lbui{position:fixed;top:max(14px,env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px))}
+  .fx-lbnav{position:fixed;bottom:max(18px,env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;color:#F7F5EA;font-family:var(--font-mono);font-size:.78rem}
+  .fx-lb .fx-btn{color:#F7F5EA;border-color:rgba(247,245,234,.5)}
+  body.fx-locked{overflow:hidden}
+  /* process block, sits inside Before Poda */
+  .fx-process{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:36px;align-items:center;margin:34px 0 10px;padding:26px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .fx-process video{width:100%;max-width:380px;display:block;border-radius:10px;background:var(--surface-2);aspect-ratio:416/564;object-fit:cover;justify-self:center}
+  .fx-process h3{font-family:var(--font-display);font-size:clamp(1.6rem,3.6vw,2.6rem);line-height:.95;text-transform:uppercase;margin:.35em 0 .4em}
+  .fx-process p{font-family:var(--font-serif);font-size:1.08rem;line-height:1.55;margin:0 0 12px;max-width:52ch}
+  .fx-steps{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 16px}
+  .fx-steps span{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);padding:6px 10px;border-radius:999px;transition:background .2s,color .2s}
+  .fx-steps span.on{background:var(--matcha);color:var(--surface);border-color:var(--matcha)}
+  .fx-process .fx-btns{display:flex;gap:10px;flex-wrap:wrap}
+  /* peek preview on "Currently" frames */
+  .fx-peek{position:fixed;top:0;left:0;width:220px;aspect-ratio:4/3;border-radius:10px;overflow:hidden;pointer-events:none;z-index:150;opacity:0;transform:translate(-50%,-115%) scale(.9) rotate(-3deg);transition:opacity .2s,transform .25s;box-shadow:0 20px 40px -18px rgba(0,0,0,.55)}
+  .fx-peek.on{opacity:1;transform:translate(-50%,-115%) scale(1) rotate(-3deg)}
+  .fx-peek img{width:100%;height:100%;object-fit:cover;display:block}
+  .work-card[data-fx],.service-card[data-fx]{cursor:pointer}
+  /* Pip, the 3D pencil guide */
+  .fx-pip{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:max(14px,env(safe-area-inset-bottom,0px));z-index:120;display:flex;align-items:flex-end;gap:8px;pointer-events:none}
+  .fx-pip canvas{width:130px;height:140px;pointer-events:auto;cursor:pointer}
+  .fx-bubble{max-width:230px;background:var(--surface);color:var(--ink);border:1px solid var(--ink);border-radius:14px 14px 14px 4px;padding:10px 12px;font-family:var(--font-serif);font-size:.95rem;line-height:1.35;margin-bottom:84px;box-shadow:0 10px 24px -14px rgba(0,0,0,.4);transition:opacity .25s,transform .25s}
+  .fx-bubble.hide{opacity:0;transform:translateY(6px)}
+  .fx-pip.off .fx-bubble{display:none}
+  .fx-pip.zoom{transition:transform .26s cubic-bezier(.3,1.6,.5,1)}
+  /* proof bars */
+  .fx-proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .fx-pf{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:18px}
+  .fx-pf h4{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;margin:0 0 14px;color:var(--ink-soft);font-weight:400}
+  .fx-pr{display:grid;grid-template-columns:4.6rem 1fr;gap:10px;align-items:center;margin:8px 0;font-size:.85rem}
+  .fx-pr i{display:block;height:26px;border-radius:4px;background:var(--surface-2);position:relative;overflow:hidden}
+  .fx-pr i::after{content:attr(data-v);position:absolute;left:10px;top:50%;transform:translateY(-50%);font-style:normal;font-family:var(--font-mono);font-size:.78rem;color:var(--ink)}
+  .fx-pr i b{display:block;height:100%;width:0;background:var(--ink-soft);opacity:.35;transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+  .fx-pr.after i b{background:var(--matcha);opacity:1}
+  .fx-pr.after i::after{color:var(--surface)}
+  .fx-cap{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:-4px 0 0}
+  /* flash aim on shoots */
+  .fx-flash{position:relative;border-radius:10px;overflow:hidden;cursor:crosshair;touch-action:pan-y;--x:50%;--y:45%}
+  .fx-flash img{width:100%;display:block}
+  .fx-flash .dark{position:absolute;inset:0;background:radial-gradient(circle at var(--x) var(--y),rgba(0,0,0,0) 0,rgba(0,0,0,0) 90px,rgba(8,8,6,.9) 200px);transition:opacity .5s}
+  .fx-flash .pop{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  .fx-flash.fired .dark{opacity:0}
+  .fx-flash.fired .pop{animation:fxPop .45s ease-out}
+  @keyframes fxPop{0%{opacity:.95}100%{opacity:0}}
+  /* website scrolls as you scroll */
+  .fx-scrolly{position:relative}
+  .fx-browser{position:sticky;top:70px;height:min(74vh,720px);max-width:760px;margin:0 auto;border:1px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+  .fx-chrome{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:.72rem;color:var(--ink-soft)}
+  .fx-chrome i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+  .fx-chrome span{margin-left:10px;padding:3px 10px;border-radius:999px;background:var(--surface-2)}
+  .fx-vp{flex:1;overflow:hidden;position:relative}
+  .fx-vp img{width:100%;display:block;will-change:transform}
+  .fx-meter{position:absolute;right:6px;top:6px;bottom:6px;width:3px;border-radius:3px;background:var(--line)}
+  .fx-meter b{display:block;width:100%;background:var(--matcha);border-radius:3px;height:0}
+  /* drag between drafts */
+  .fx-drafts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin:4px 0 10px}
+  .fx-cmp{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff;user-select:none;touch-action:pan-y;cursor:ew-resize;--p:50%}
+  .fx-cmp img{display:block;width:100%;pointer-events:none}
+  .fx-cmp .top{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--p)) 0 0)}
+  .fx-cmp .top img{height:100%;object-fit:cover}
+  .fx-cmp .hd{position:absolute;top:0;bottom:0;left:var(--p);width:2px;background:var(--flash);transform:translateX(-1px)}
+  .fx-cmp .hd::after{content:'';position:absolute;top:50%;left:50%;width:34px;height:34px;border-radius:50%;background:var(--flash);transform:translate(-50%,-50%);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .fx-cmp .lb{position:absolute;bottom:10px;font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.88);color:#1b1b16;padding:4px 8px;border-radius:999px}
+  .fx-cmp .lb.l{left:10px}.fx-cmp .lb.r{right:10px}
+  .fx-cmp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+  .fx-dh{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:26px 0 12px}
+  .fx-dh h3{font-family:var(--font-display);font-size:clamp(1.4rem,3vw,2rem);text-transform:uppercase;margin:0;line-height:1}
+  #about .about-portrait img{transition:filter .1s linear}
+  @media (max-width:820px){.fx-head,.fx-process{grid-template-columns:1fr}.fx-pip canvas{width:80px;height:95px}.fx-bubble{max-width:180px;font-size:.85rem;margin-bottom:60px}.fx-peek{display:none}}
+  @media (prefers-reduced-motion:reduce){.fx-sheet,.fx-lb,.fx-wall img,.fx-peek{transition:none}}
+</style>
+
+<div class="fx-sheet" id="fxSheet" role="dialog" aria-modal="true" aria-labelledby="fxTitle">
+  <div class="fx-bar"><div class="fx-in"><span class="fx-crumb" id="fxCrumb"></span><button class="fx-btn" type="button" id="fxClose">Close</button></div></div>
+  <div class="fx-in fx-body" id="fxBody"></div>
+</div>
+<div class="fx-lb" id="fxLb" role="dialog" aria-modal="true" aria-label="Image viewer">
+  <div class="fx-lbui"><button class="fx-btn" type="button" id="fxLbClose">Close</button></div>
+  <div class="fx-lbf" id="fxLbf"><img id="fxLbImg" alt=""></div>
+  <div class="fx-lbnav"><button class="fx-btn" type="button" id="fxPrev">Prev</button><span id="fxCount"></span><button class="fx-btn" type="button" id="fxNext">Next</button></div>
+</div>
+<div class="fx-peek" id="fxPeek" aria-hidden="true"><img alt=""></div>
+<div class="fx-pip" id="fxPip"><canvas id="fxPipCanvas" aria-label="A silly green slime guide. Tap it to poke it." role="button" tabindex="0"></canvas><div class="fx-bubble" id="fxBubble" aria-live="polite">Hi! Fatima designs, draws, codes and directs. I'll point at the good bits.</div></div>
+
+<template id="fxProcessTpl">
+  <div class="fx-process reveal" id="process">
+    <video id="fxVid" src="a/process.mp4" poster="a/process-poster.jpg" muted loop playsinline preload="metadata" aria-label="Time-lapse of the phone booth illustration from first line to final colour"></video>
+    <div>
+      <span class="eyebrow">Process · Procreate</span>
+      <h3>From one line to the phone booth.</h3>
+      <p>Every piece starts as loose perspective lines. I block in the booth and the figure, clean the lineart, then flood it with flat greens and build the light last, so the screens glow and the vinyl jacket shines.</p>
+      <div class="fx-steps" id="fxSteps"><span>Perspective</span><span>Lineart</span><span>Flats</span><span>Light &amp; shine</span></div>
+      <p style="font-size:.95rem;color:var(--ink-soft)">Plays when it scrolls into view. 30 hours of drawing, about ten seconds of video.</p>
+    </div>
+  </div>
+</template>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function(){
+var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function L(n){return 'a/il'+n+'-l.webp'} function T(n){return 'a/il'+n+'.webp'}
+var WALL=[11,7,12,5,22,0,1,6,8,13,14,15,16,17,18,4,27,32,43,46,48,49,20,21,26,33,28,29,30,31,3];
+var D={
+ 'Storytelling Email + Sign-Up Form':{pip:'Plain-text emails beat the pretty ones. Those are real Klaviyo screens.',tag:'CRM · Klaviyo · CRO',text:'I swapped polished templates for short, lowercase, friend-to-friend emails with one photo and one story, then designed a sign-up form with no discount offer.',facts:[['+29%','opens per send'],['+285%','email-attributed revenue'],['6.4%','sign-up form submit rate']],proof:[['Opens per send',['Before',111,'111'],['After',143,'143'],'+29% after the switch to plain-text stories'],['Sign-up form submit rate',['All time',4.1,'4.1% · 182 sign-ups'],['Best 30 days',6.4,'6.4% · 108 sign-ups'],'No discount offered, just the story']],wide:1,imgs:['a/kv_home_performance.webp','a/kv_campaigns.webp','a/kv_flows_list.webp','a/kv_welcome_flow_builder.webp','a/kv_post_purchase_flow_builder.webp'],cap:'Straight from the Klaviyo account: performance summary, campaigns, live flows and flow builders.'},
+ 'Gifted Creator Program':{pip:'26% to 83%, with zero paid fees. Mostly politeness and persistence.',tag:'Creator partnerships',text:'Read every creator\'s feed, wrote each one a custom brief in their own style, and followed up personally until they posted.',facts:[['83%','delivered, up from 26%'],['47','videos and posts'],['$0','in creator fees']],proof:[['Creators who actually posted',['Before',26,'26% · 27 of 104'],['After',83,'83% · 20 of 24'],'Custom briefs and personal follow-ups'],['What it cost',['Paid fees',0,'$0'],['Videos & posts',47,'47'],'Gifted product only']],imgs:['a/C1_cover_creator_ugc.webp','a/C2_creator_story_cards.webp','a/C3_creator_reviews.webp']},
+ 'Animated Shopify Website':{pip:'She designed it and coded it. Keep scrolling.',tag:'Ecommerce · Shopify',text:'Designed and coded in Liquid, HTML, CSS and JS, with the matcha-smear animation kept light on mobile. Keep scrolling and the homepage scrolls with you.',facts:[['5','buying objections answered'],['1','person designing and coding']],scrolly:'a/site.webp'},
+ 'Interactive Landing Page':{tag:'Ecommerce · CRO',text:'A landing page rebuilt around what stops a sale: price, prep time, bitterness, clumping and coffee habits.',imgs:['a/c05.webp','a/S3_product_section.webp']},
+ 'Family Lifestyle AI Shoot':{pip:'No studio, no cast. All AI, all art directed.',tag:'AI art direction',text:'A warm family morning, directed end to end with AI: casting, wardrobe, set, light and where the tube sits in the frame.',flash:['a/c02.webp']},
+ 'Alt Bar Thematic Shoot':{pip:'A matcha-tini at a goth bar. Light it up.',tag:'AI art direction',text:'A late-night alt bar world, so the matcha tube looked like it belonged at a real table.',flash:['a/c03.webp','a/bar.webp','a/bar2.webp']},
+ 'Instagram Carousels':{pip:'Slide three is the one people save.',tag:'Social · Instagram',text:'Pinned on @drinkpoda. AI product visuals with big, loud type: what it is, why it\'s different, and how to make it in 30 seconds.',imgs:['a/poda-what-is-poda-1.webp','a/poda-what-is-poda-2.webp','a/poda-what-is-poda-3.webp','a/poda-pour.webp']},
+ 'Matcha Recipe Book':{tag:'Lead Magnet · Print & Digital',pip:'Matcha modak. That one surprised everyone.',text:'A free recipe book for Poda, made with the creators who cooked with it. Hand-drawn cover, gingham pages, and one recipe per creator, from matcha butter toast to a matcha cocktail and matcha modak.',imgs:['a/rb1.webp','a/rb2.webp','a/rb3.webp','a/rb4.webp']},
+ 'Recipe Book Sign-Up Form':{tag:'Klaviyo · Sign-Up Form',pip:'One easy question first, then the email. Way less scary.',text:'A Klaviyo pop-up that gives away the recipe book. It asks one easy question first (do you make matcha at home, buy it from a cafe, or never tried it?) and then the email, so every sign-up comes in already sorted. Built for desktop and mobile.',wide:1,imgs:['a/rf1.webp','a/rf2.webp']},
+ 'HTML Email Build':{tag:'CRM · Email build',text:'Hand-coded HTML emails that hold up across inboxes.',imgs:['a/c06.webp','a/B_welcome_flow_emails.webp']},
+ 'How It Works GIFs':{tag:'Motion · GIF',text:'Squeeze, stir, sip: explainer GIFs for email and product pages.',imgs:['a/c07.webp']},
+ 'Wehshi Lab Stickers':{tag:'Sticker design',text:'A collectible sticker set for Wehshi Lab.',imgs:['a/c08.webp',L(26)]},
+ 'Animevania Key Visual':{tag:'Illustration',text:'A neon skyline key visual.',imgs:['a/c09.webp']},
+ 'Online Pharmacy Campaign':{tag:'Ad campaign',text:'Friendly, clear ads for medicine delivered to your door.',imgs:['a/c10.webp']},
+ 'Perch Banners':{tag:'Web graphics',text:'Web banners for an ergonomic chair brand.',imgs:['a/c11.webp']},
+ 'Skatepark Pakistan':{tag:'Poster design',text:'Poster for free skateboarding lessons.',imgs:[L(22)]},
+ 'Custom Shopify Landing Page Design + Development':{tag:'Service',text:'A Shopify page built around why people don\'t buy, written, designed and coded by one person.',tiers:[['Starter','US$450','7 days',['1 product or landing page','Built in your theme, mobile-ready','1 revision']],['Standard','US$1,100','10 days',['Page plus copy written for you','5 customer objections answered','2 revisions']],['Advanced','US$1,600','14 days',['Page, copy and custom animation','Speed check so it stays fast on phones','3 revisions']]]},
+ 'AI Product Shoots for CPG Brands':{tag:'Service',text:'Your product in a real-looking scene, without booking a studio.',tiers:[['Starter','US$175','4 days',['5 images, 1 scene','Concept and art direction','1 revision']],['Standard','US$500','6 days',['10 images, 2 scenes','Website and social crops','2 revisions']],['Advanced','US$800','8 days',['20 images, 3 scenes, 2 motion clips','Mini brief for your next real shoot','3 revisions']]]},
+ 'Email Campaign Design for Ecommerce Brands':{tag:'Service',text:'Klaviyo flows that sound like a person wrote them, built live in your account.',tiers:[['Starter','US$150','5 days',['Welcome flow, 3 emails','Copy, design and build','1 revision']],['Standard','US$450','7 days',['Welcome + abandoned cart, 6 emails','Sign-up form tweak','2 revisions']],['Advanced','US$750','10 days',['9 emails incl. post-purchase','Segmentation and 30-day results check','3 revisions']]]},
+ illustration:{title:'Illustration',tag:'Before Poda · since 2022',text:'Portraits, characters, comics and posters. Tap any piece to zoom into the brushwork.',wall:WALL}
+};
+var order=Object.keys(D);
+var sheet=document.getElementById('fxSheet'),body=document.getElementById('fxBody'),crumb=document.getElementById('fxCrumb');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function openSheet(key){
+  var d=D[key]; if(!d) return; var title=d.title||key;
+  var group=d.tiers?'Services':(key==='illustration'||key==='sketch'?'Illustration':'Selected work');
+  var list=order.filter(function(k){var x=D[k];return (!!x.tiers)===(!!d.tiers) && (!x.wall)});
+  var i=list.indexOf(key), nx=list[(i+1)%list.length], pv=list[(i-1+list.length)%list.length];
+  crumb.textContent=group+' / '+title;
+  var h='<div class="fx-head"><div><span class="fx-tag">'+esc(d.tag)+'</span><h2 id="fxTitle">'+esc(title)+'</h2><p>'+esc(d.text)+'</p></div>';
+  h+= d.facts?'<div class="fx-facts">'+d.facts.map(function(f){return '<div><b>'+f[0]+'</b><span>'+esc(f[1])+'</span></div>'}).join('')+'</div>':'<div></div>';
+  h+='</div>';
+  if(d.proof) h+='<div class="fx-proof">'+d.proof.map(function(p){var mx=Math.max(p[1][1],p[2][1])||1;return '<div class="fx-pf"><h4>'+esc(p[0])+'</h4>'+[p[1],p[2]].map(function(r,j){return '<div class="fx-pr'+(j?' after':'')+'"><span>'+esc(r[0])+'</span><i data-v="'+esc(r[2])+'"><b data-w="'+Math.max(3,r[1]/mx*100)+'"></b></i></div>'}).join('')+'<p class="fx-cap" style="margin-top:12px">'+esc(p[3])+'</p></div>'}).join('')+'</div>';
+  if(d.flash) h+='<p class="fx-cap">'+(matchMedia('(hover: none)').matches?'Tap the photo to fire the flash':'Aim with your cursor, click to fire the flash')+'</p><div class="fx-media">'+d.flash.map(function(s,k){return '<div class="fx-flash"><img loading="lazy" src="'+s+'" alt="'+esc(title)+', frame '+(k+1)+'"><span class="dark"></span><span class="pop"></span></div>'}).join('')+'</div>';
+  if(d.scrolly) h+='<div class="fx-scrolly" style="height:260vh"><div class="fx-browser"><div class="fx-chrome"><i></i><i></i><i></i><span>drinkpoda.com</span></div><div class="fx-vp"><img src="'+d.scrolly+'" alt="Full-length drinkpoda.com homepage"><span class="fx-meter"><b></b></span></div></div></div>';
+  if(d.imgs) h+='<div class="fx-media'+(d.wide?' wide':'')+'">'+d.imgs.map(function(s,k){return '<img loading="lazy" src="'+s+'" alt="'+esc(title)+', image '+(k+1)+'" data-k="'+k+'">'}).join('')+'</div>';
+  if(d.cap) h+='<p class="fx-cap">'+esc(d.cap)+'</p>';
+  if(d.tall) h+='<div class="fx-media"><div class="fx-tall" tabindex="0" aria-label="Scrollable full homepage"><img src="'+d.tall+'" alt="Full-length screenshot of the drinkpoda.com homepage"></div></div>';
+  if(d.wall) h+='<div class="fx-wall">'+d.wall.map(function(n,k){return '<button type="button" data-w="'+k+'"><img loading="lazy" src="'+T(n)+'" alt="Illustration '+(k+1)+'"></button>'}).join('')+'</div>';
+  if(d.tiers) h+='<div class="fx-tiers">'+d.tiers.map(function(t){return '<div class="fx-tier"><h3>'+t[0]+'</h3><div class="p">'+t[1]+'</div><span class="fx-tag" style="color:var(--ink-soft)">'+t[2]+'</span><ul>'+t[3].map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></div>'}).join('')+'</div>';
+  if(i>-1) h+='<div class="fx-next"><button class="fx-btn" type="button" data-fxopen="'+esc(pv)+'">Prev: '+esc(D[pv].title||pv)+'</button><button class="fx-btn solid" type="button" data-fxopen="'+esc(nx)+'">Next: '+esc(D[nx].title||nx)+'</button></div>';
+  body.innerHTML=h;
+  if(d.imgs) body.querySelectorAll('[data-k]').forEach(function(im){im.addEventListener('click',function(){openLb(d.imgs,+im.dataset.k)})});
+  if(d.wall){var big=d.wall.map(L);body.querySelectorAll('[data-w]').forEach(function(b){b.addEventListener('click',function(){openLb(big,+b.dataset.w)});
+    if(!reduce){var im=b.firstChild;b.addEventListener('pointermove',function(e){var r=b.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;im.style.transform='rotateY('+x*10+'deg) rotateX('+(-y*10)+'deg) scale(1.02)'});b.addEventListener('pointerleave',function(){im.style.transform=''})}});}
+  sheet.scrollTop=0; sheet.classList.add('open'); document.body.classList.add('fx-locked');
+  if(d.proof) setTimeout(function(){body.querySelectorAll('.fx-pr b').forEach(function(b){b.style.width=b.dataset.w+'%'})},350);
+  body.querySelectorAll('.fx-flash').forEach(function(f){
+    function aim(e){var r=f.getBoundingClientRect();f.style.setProperty('--x',(e.clientX-r.left)+'px');f.style.setProperty('--y',(e.clientY-r.top)+'px')}
+    f.addEventListener('pointermove',aim);
+    f.addEventListener('click',function(e){aim(e);f.classList.remove('fired');void f.offsetWidth;f.classList.add('fired');clearTimeout(f._t);f._t=setTimeout(function(){f.classList.remove('fired')},2600)});});
+  scrolly=body.querySelector('.fx-scrolly');scrollyTick();
+  if(d.pip) say(d.pip);
+  setTimeout(function(){document.getElementById('fxClose').focus({preventScroll:true})},60);
+}
+var scrolly=null;
+function scrollyTick(){if(!scrolly)return;var vp=scrolly.querySelector('.fx-vp'),im=vp.querySelector('img'),m=vp.querySelector('.fx-meter b');
+  var top=scrolly.getBoundingClientRect().top-70,range=scrolly.offsetHeight-vp.parentNode.offsetHeight,p=Math.min(1,Math.max(0,-top/range));
+  im.style.transform='translateY('+(-p*Math.max(0,im.offsetHeight-vp.clientHeight))+'px)';m.style.height=(p*100)+'%';}
+sheet.addEventListener('scroll',function(){requestAnimationFrame(scrollyTick)},{passive:true});
+function closeSheet(){sheet.classList.remove('open');document.body.classList.remove('fx-locked');}
+document.getElementById('fxClose').addEventListener('click',closeSheet);
+document.addEventListener('click',function(e){var o=e.target.closest('[data-fxopen]');if(o){e.preventDefault();openSheet(o.dataset.fxopen);}});
+/* hook the existing cards: same cards, same look, now they open here */
+document.querySelectorAll('.work-card,.service-card').forEach(function(a){var h=a.querySelector('h3');if(!h)return;var k=h.textContent.trim();if(D[k]){a.dataset.fx=k;a.addEventListener('click',function(e){e.preventDefault();openSheet(k)});var ar=a.querySelector('.arrow,.service-arrow');if(ar)ar.textContent='+';}});
+/* card order: email, creators, website, landing page, shoots, then the rest */
+var g3=document.querySelector('#work .work-grid.three');
+if(g3){var by={};g3.querySelectorAll('.work-card').forEach(function(c){var h=c.querySelector('h3');if(h)by[h.textContent.trim()]=c;});
+  var src=by['How It Works GIFs'];
+  if(src){var nc=src.cloneNode(true);nc.removeAttribute('href');nc.setAttribute('href','#');nc.removeAttribute('target');
+    var im=nc.querySelector('img');im.src='a/poda-what-is-poda-1.webp';im.alt='Poda Instagram carousel, cold-concentrated matcha';
+    nc.querySelector('.work-tag').textContent='Social · Instagram';nc.querySelector('h3').textContent='Instagram Carousels';
+    nc.dataset.fx='Instagram Carousels';nc.classList.add('in-view');nc.style.opacity='';nc.addEventListener('click',function(e){e.preventDefault();openSheet('Instagram Carousels')});by['Instagram Carousels']=nc;}
+  [['Matcha Recipe Book','a/rb1.webp','Poda matcha recipe book cover, hand-drawn people around a table','Lead Magnet · Print'],['Recipe Book Sign-Up Form','a/rf1.webp','Poda sign-up form offering a free matcha recipe book','Klaviyo · Sign-Up Form']].forEach(function(x){if(!src)return;var c=src.cloneNode(true);c.setAttribute('href','#');c.removeAttribute('target');var im=c.querySelector('img');im.src=x[1];im.alt=x[2];c.querySelector('.work-tag').textContent=x[3];c.querySelector('h3').textContent=x[0];c.dataset.fx=x[0];c.classList.add('in-view');c.addEventListener('click',function(e){e.preventDefault();openSheet(x[0])});by[x[0]]=c;});
+  ['Animated Shopify Website','Interactive Landing Page','Family Lifestyle AI Shoot','Alt Bar Thematic Shoot','Instagram Carousels','Matcha Recipe Book','Recipe Book Sign-Up Form','HTML Email Build','How It Works GIFs'].forEach(function(k,i){var c=by[k];if(c){c.style.setProperty('--i',i);g3.appendChild(c);}});}
+/* the archive link opens the illustration wall here */
+[].slice.call(document.querySelectorAll('#work a')).forEach(function(a){if(/Full archive/i.test(a.textContent)){a.innerHTML='All illustration <span class="ring">+</span>';a.removeAttribute('target');a.setAttribute('href','#');a.addEventListener('click',function(e){e.preventDefault();openSheet('illustration')});}});
+/* Currently: Linda & Gary replaces Matcha People */
+var sn=document.querySelector('#now .side-note-text');
+if(sn) sn.innerHTML='<span class="label">Also directing · @linda.and.gary</span><b>Linda &amp; Gary</b>: a deadpan comic series for Poda. One actor, two fish masks (pink Linda, green Gary) and 35 skits across four sets: husband and wife, the doctor, the job interview and the meeting. Every joke has to land in two seconds with the sound off.';
+/* About photo: greyscale to full colour as it scrolls up */
+var ph=document.querySelector('#about .about-portrait img');
+if(ph){function tint(){var r=ph.getBoundingClientRect(),p=Math.min(1,Math.max(0,(innerHeight-r.top)/(innerHeight*.75)));ph.style.filter='grayscale('+(1-p)+') saturate('+(0.6+p*0.6)+') contrast(1.02)';}
+  addEventListener('scroll',function(){requestAnimationFrame(tint)},{passive:true});tint();}
+/* lightbox */
+var lb=document.getElementById('fxLb'),lbf=document.getElementById('fxLbf'),lbi=document.getElementById('fxLbImg'),cnt=document.getElementById('fxCount'),LL=[],LI=0;
+function showLb(){lbi.src=LL[LI];lbi.alt='Image '+(LI+1)+' of '+LL.length;cnt.textContent=(LI+1)+' / '+LL.length;lbf.classList.remove('zoom')}
+function openLb(list,i){LL=list;LI=i;showLb();lb.classList.add('open');document.getElementById('fxLbClose').focus({preventScroll:true})}
+function closeLb(){lb.classList.remove('open')}
+document.getElementById('fxLbClose').addEventListener('click',closeLb);
+document.getElementById('fxNext').addEventListener('click',function(){LI=(LI+1)%LL.length;showLb()});
+document.getElementById('fxPrev').addEventListener('click',function(){LI=(LI-1+LL.length)%LL.length;showLb()});
+function org(e){var r=lbi.getBoundingClientRect();lbi.style.setProperty('--ox',((e.clientX-r.left)/r.width*100)+'%');lbi.style.setProperty('--oy',((e.clientY-r.top)/r.height*100)+'%')}
+lbf.addEventListener('click',function(e){org(e);lbf.classList.toggle('zoom')});
+lbf.addEventListener('pointermove',function(e){if(lbf.classList.contains('zoom'))org(e)});
+addEventListener('keydown',function(e){if(e.key==='Escape'){if(lb.classList.contains('open'))closeLb();else closeSheet();}if(lb.classList.contains('open')){if(e.key==='ArrowRight')document.getElementById('fxNext').click();if(e.key==='ArrowLeft')document.getElementById('fxPrev').click();}});
+
+/* process video: inserted into the Before Poda group, plays on view, step chips follow the video */
+var anchor=[].slice.call(document.querySelectorAll('#work a')).filter(function(a){return /Full archive|All illustration/i.test(a.textContent)})[0];
+var tpl=document.getElementById('fxProcessTpl').content.cloneNode(true);
+if(anchor){var host=anchor.closest('p,div')||anchor;host.parentNode.insertBefore(tpl,host);}
+var vid=document.getElementById('fxVid'),steps=[].slice.call(document.querySelectorAll('#fxSteps span'));
+if(vid){
+  var stepAt=[0,.34,.48,.64];
+  vid.addEventListener('timeupdate',function(){var p=vid.currentTime/(vid.duration||1),k=0;stepAt.forEach(function(s,i){if(p>=s)k=i});steps.forEach(function(s,i){s.classList.toggle('on',i===k)})});
+  if(!reduce&&'IntersectionObserver' in window){new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)vid.play().catch(function(){});else vid.pause();})},{threshold:.4}).observe(vid);}
+  else {vid.controls=true;}
+  var pr=document.getElementById('process'); if(pr) pr.classList.add('in-view');
+  var dr=document.getElementById('drafts'); if(dr) dr.classList.add('in-view');
+  document.querySelectorAll('.fx-cmp').forEach(function(c){var r=c.querySelector('input');r.addEventListener('input',function(){c.style.setProperty('--p',r.value+'%')});});
+}
+
+/* "Currently" frames: hover to peek at the work behind each one */
+var peek=document.getElementById('fxPeek'),pimg=peek.querySelector('img');
+var PEEK=['a/kv_home_performance.webp','a/S3_product_section.webp','a/C1_cover_creator_ugc.webp','a/c03.webp','a/poda-what-is-poda-1.webp','a/c04.webp','a/c02.webp'];
+document.querySelectorAll('#now .frame').forEach(function(f,i){if(!PEEK[i])return;
+  f.addEventListener('pointerenter',function(){pimg.src=PEEK[i];peek.classList.add('on')});
+  f.addEventListener('pointermove',function(e){peek.style.left=e.clientX+'px';peek.style.top=e.clientY+'px'});
+  f.addEventListener('pointerleave',function(){peek.classList.remove('on')});});
+
+/* Results: numbers count up the first time they appear */
+if(!reduce&&'IntersectionObserver' in window){
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;io.unobserve(e.target);
+    var el=e.target,txt=el.textContent.trim(),m=txt.match(/^([^\d]*)([\d.]+)(.*)$/);if(!m)return;var to=parseFloat(m[2]),dec=(m[2].split('.')[1]||'').length,t0=performance.now();
+    (function step(n){var k=Math.min(1,(n-t0)/1300),v=to*(1-Math.pow(1-k,3));el.textContent=m[1]+v.toFixed(dec)+m[3];if(k<1)requestAnimationFrame(step);else el.textContent=txt;})(t0);
+  })},{threshold:.6});
+  document.querySelectorAll('#results .kpi .num').forEach(function(n){io.observe(n)});
+}
+
+/* Pip: a little 3D pencil that watches the cursor and narrates each section */
+var bubble=document.getElementById('fxBubble'),pipBox=document.getElementById('fxPip'),muted=false,lastLine='';
+var touchy=matchMedia('(hover: none)').matches,hideT=null;
+function say(t){if(muted||t===lastLine)return;lastLine=t;bubble.classList.add('hide');clearTimeout(hideT);setTimeout(function(){bubble.textContent=t;bubble.classList.remove('hide');if(touchy)hideT=setTimeout(function(){bubble.classList.add('hide')},3800);},180);}
+var LINES=[['.hero','Hi!! I\'m a slime. Fatima designs, draws, codes and directs. I mostly just jiggle.'],['#results','These numbers are real. I checked. With my eyes. I have two.'],['#work','her work!! emails, creators, websites, shoots. click a card, I dare you.'],['#process','Thirty hours of drawing in ten seconds. I can\'t even hold a pencil.'],['#now','Linda and Gary are coming. Two fish, one actor, zero explanations.'],['#services','Shopify pages, AI shoots, Klaviyo. She\'s good. I\'m biased. And green.'],['#about','Psychology degree. She knows why you buy things. She knows why I\'m sticky.'],['#contact','Email her. Do it. I\'ll wait. I\'m a slime, I have time.']];
+var MAD=[['hey.','excuse me?','ow. rude.','who keeps touching me'],['HEY. stop.','I\'m telling Fatima','I am NOT a stress ball','do that again and see what happens'],['I\'m literally a slime what do you WANT','I bite. (I don\'t have teeth) (I\'ll figure it out)','my therapist will hear about this','you\'re on thin ice. I\'m on a portfolio.'],['THAT\'S IT.','I\'m so mad I\'m turning red','*aggressive jiggling*','I have NEVER been so disrespected']];
+var FAINT=['oh no... the clicking... it\'s too much...','tell Fatima... she was a great designer...','*dramatically faints*','I see a light... it\'s a hover state...','goodbye cruel portfolio'];
+var REVIVE=['jk I\'m fine','I\'m back. did you miss me','that was a test. you failed.','resurrected. still mad.'];
+var BORED=['*hums elevator music*','I\'ve been staring at this portfolio all day. it\'s good.','is anyone gonna hire her or','you scroll, I jiggle. teamwork.','*does a little spin for no reason*','I\'m not sticky. you\'re sticky.','do you think I have a skeleton. be honest.','if I stand very still I\'m a gummy bear'];
+var HOV={'Storytelling Email + Sign-Up Form':'she ditched fancy emails for plain-text stories. opens went UP. wild.','Gifted Creator Program':'she got creators to actually post. for free. witchcraft.','Animated Shopify Website':'she designed AND coded this website. show-off.','Interactive Landing Page':'a landing page that answers your doubts before you even have them','Family Lifestyle AI Shoot':'a whole family photoshoot. made with AI. nobody had to say cheese.','Alt Bar Thematic Shoot':'a goth bar shoot. moody. like me on a Monday.','Instagram Carousels':'swipe swipe swipe. big loud type. you WILL stop scrolling.','Matcha Recipe Book':'a recipe book made with real creators. I can\'t cook. no hands.','Recipe Book Sign-Up Form':'one easy question, then your email. sneaky smart.','HTML Email Build':'a hand-coded email. she typed every tag. with her fingers.','How It Works GIFs':'GIFs that explain the product faster than I can blink. I can\'t blink.','Wehshi Lab Stickers':'stickers!! I want to be a sticker when I grow up','Animevania Key Visual':'a neon anime city. I\'d live there. rent is probably crazy.','Online Pharmacy Campaign':'a medicine delivery ad. the doctor has a scooter. iconic.','Perch Banners':'banners for desk chairs. sit down for this one.','Skatepark Pakistan':'a skatepark poster. I can\'t skate. no legs. no board. no hope.'};
+
+if('IntersectionObserver' in window){var sio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var hit=LINES.filter(function(l){return e.target.matches(l[0])})[0];if(hit)say(hit[1]);}})},{threshold:.35});
+  LINES.forEach(function(l){var el=document.querySelector(l[0]);if(el)sio.observe(el)});}
+var cv=document.getElementById('fxPipCanvas');
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function quip(t){lastLine='';var m=muted;muted=false;say(t);muted=m;}
+bubble.addEventListener('click',function(){muted=!muted;pipBox.classList.toggle('off',muted);});
+var poke=function(){};
+cv.addEventListener('click',function(){poke();});cv.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();poke();}});
+if(window.THREE&&THREE.GLTFLoader){
+  var R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));R.outputEncoding=THREE.sRGBEncoding;
+  var sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(28,130/140,.1,100);
+  sc.add(new THREE.HemisphereLight(0xffffff,0x4E6B36,1.15));var dl=new THREE.DirectionalLight(0xffffff,1.1);dl.position.set(2,4,5);sc.add(dl);
+  var mixer=null,acts={},cur=null,slime=null,mx=0,my=0,base=0;
+  function play(n,once){var a=acts[n];if(!a||a===cur&&!once)return;a.reset();a.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat);a.clampWhenFinished=!!once;a.fadeIn(.15).play();if(cur&&cur!==a)cur.fadeOut(.15);cur=a;}
+  new THREE.GLTFLoader().load('a/slime.json',function(g){
+    slime=g.scene;
+    slime.traverse(function(c){if(c.isMesh){var m=[].concat(c.material).map(function(o){var col=o.color.clone();if(!/eye/i.test(o.name))col.offsetHSL(0,-.12,-.06);return new THREE.MeshStandardMaterial({color:col,roughness:/eye/i.test(o.name)?.15:.45,skinning:true,flatShading:true})});c.material=m.length>1?m:m[0];}});
+    var box=new THREE.Box3().setFromObject(slime),sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
+    var k=2/Math.max(sz.x,sz.y,sz.z);slime.scale.setScalar(k);slime.position.set(-c.x*k,-box.min.y*k-.75,-c.z*k);
+    slime.rotation.y=-Math.PI/2;var holder=new THREE.Group();holder.add(slime);sc.add(holder);slime=holder;
+    cam.position.set(0,.7,6.4);cam.lookAt(0,.05,0);
+    mixer=new THREE.AnimationMixer(g.scene);
+    g.animations.forEach(function(cl){var n=cl.name.split('_').pop().toLowerCase();acts[n]=mixer.clipAction(cl);});
+    mixer.addEventListener('finished',function(){cur=null;play('idle');});
+    play('idle');
+  });
+  /* silly brain: one big move every 4 seconds max, eyes always on the cursor */
+  var T=0,sq=0,sqv=0,jy=0,jv=0,spin=0,spinT=0,tilt=0,shake=0,puff=0,faint=0,faintT=0,hoverOn=false,lastAct=performance.now(),lastMove=0,lastScroll=0,scrollV=0,anger=0,angerT=0,yaw=.85,pitch=0,cx=-1,cy=-1;
+  var bodyMats=[],bodyCol=[];
+  slime&&0;
+  function free(){return performance.now()-lastMove>4000&&!faint;}
+  function act(fn){if(!free())return false;lastMove=performance.now();fn();return true;}
+  function hop(h){if(jy<=0.001){jv=h||5.2;sqv-=6;}}
+  function doFaint(line){lastMove=performance.now()+3500;faint=1;faintT=0;if(acts.death)play('death',true);quip(line||pick(FAINT));
+    setTimeout(function(){faint=0;anger=0;hop(7);quip(pick(REVIVE));},3600);}
+  var TRICKS=[function(){hop(6.5);spinT=Math.PI*2;},function(){hop(4.5);},function(){shake=1.2;},function(){puff=1;setTimeout(function(){quip('achoo!! sorry. allergic to good design.')},350)},function(){spinT=Math.PI*4;quip('wheeeee');},function(){doFaint(pick(['*faints for no reason*','I\'m just gonna lie down for a sec','the vibes are too strong... *faints*']));},function(){doFaint();}];
+  var _say=say;say=function(t){var before=lastLine;_say(t);if(lastLine!==before&&!reduce)act(function(){hop(5);if(acts.attack)play('attack',true);});};
+  /* click him a bunch and he gets the zoomies. third time, he texts Fatima for you */
+  var clicks=[],zooming=false,zoomCount=0,WA='https://wa.me/923034440244?text='+encodeURIComponent('Hi Fatima! We are unhealthily obsessed with your slime friend, so we\'re gonna give you a job. (the portfolio is pretty good too I guess)');
+  function zoomies(win){zooming=true;zoomCount++;faint=0;anger=4;angerT=performance.now();pipBox.classList.add('zoom');
+    var lines=zoomCount>=3?['THAT\'S IT. I\'M TEXTING HER.','*typing furiously*','sent. you\'re welcome.']:['AAAAAAAA','ZOOMIES','you did this','I CAN\'T STOP','wheeeeeeeee'];
+    var n=0,hops=9;quip(lines[0]);
+    (function step(){if(n>=hops){pipBox.style.transform='';spinT=0;setTimeout(function(){pipBox.classList.remove('zoom');zooming=false;anger=2;
+        if(zoomCount>=3){zoomCount=0;if(win&&!win.closed){try{win.location.href=WA;}catch(e){win.close();window.open(WA,'_blank');}}else{bubble.innerHTML='ok fine. <a href="'+WA+'" target="_blank" rel="noopener" style="color:inherit;font-weight:700">tap here and I\'ll text her for you</a>';}quip(lines[2]);}
+        else quip(pick(['*pants heavily*','I need a nap','do NOT do that again','ok I\'m fine. I\'m fine.']));},280);return;}
+      var b=pipBox.getBoundingClientRect(),x=Math.random()*(innerWidth-b.width-30),y=-Math.random()*(innerHeight-b.height-30);
+      pipBox.style.transform='translate('+x.toFixed(0)+'px,'+y.toFixed(0)+'px) rotate('+((Math.random()-.5)*50).toFixed(0)+'deg)';
+      spinT+=Math.PI;sqv+=14;if(n===4)quip(lines[1]);n++;setTimeout(step,270);})();}
+  poke=function(){lastAct=performance.now();if(zooming)return;var now=performance.now();clicks=clicks.filter(function(t){return now-t<1600});clicks.push(now);
+    if(clicks.length>=3){clicks=[];var w=null;if(zoomCount===2){w=window.open('','_blank');}zoomies(w);return;}
+    if(faint){quip(pick(['I\'m DEAD. let me rest.','*still fainted*','do not poke the deceased']));return;}
+    anger=Math.min(4,anger+1);angerT=performance.now();
+    if(anger>=4){doFaint(pick(FAINT));return;}
+    quip(pick(MAD[anger-1]));shake=Math.max(shake,.5+anger*.3);
+    act(function(){if(anger>=3){hop(6);}else{sqv+=12;}});};
+  cv.addEventListener('pointerenter',function(){hoverOn=true;if(!faint)quip(pick(['hi hello hi','don\'t you dare click me','I see you','personal space please','careful. I\'m moist.']));});
+  cv.addEventListener('pointerleave',function(){hoverOn=false;});
+  addEventListener('scroll',function(){var y=scrollY;scrollV=Math.min(60,Math.abs(y-lastScroll));lastScroll=y;lastAct=performance.now();if(reduce||!acts.walk||faint)return;if(cur===acts.idle)play('walk');clearTimeout(window.__st);window.__st=setTimeout(function(){if(cur===acts.walk)play('idle')},220);if(!touchy&&scrollV>45&&Math.random()<.06)quip(pick(['wheeeee','slow down I\'m getting dizzy','AAAAA','too fast!! I\'m a liquid!!']));},{passive:true});
+  addEventListener('pointermove',function(e){cx=e.clientX;cy=e.clientY;mx=e.clientX/innerWidth*2-1;my=e.clientY/innerHeight*2-1});
+  setInterval(function(){if(reduce||document.hidden||faint)return;if(Math.random()<.7)act(pick(TRICKS));if(performance.now()-lastAct>9000&&Math.random()<.4)quip(pick(BORED));},4100);
+  /* narrates whatever you hover */
+  var hovEl=null,hovTimer=null;
+  function explain(el){
+    var card=el.closest('.work-card,.service-card');if(card){var h=card.querySelector('h3'),k=h&&h.textContent.trim();if(card.classList.contains('service-card'))return k+'? click it. see the prices. no hidden fees, unlike my emotional baggage.';return HOV[k]||(k+'. click it. it opens right here. magic.');}
+    var kp=el.closest('.kpi');if(kp){var n=(kp.querySelector('.num')||kp).textContent.trim();return n+'. a real number from a real dashboard. I\'m so proud I could jiggle.';}
+    if(el.closest('#fxVid,.fx-process'))return 'thirty hours of drawing squished into ten seconds. I can\'t even hold a pencil.';
+    if(el.closest('#now .frame'))return 'stuff she\'s working on right now. fresh out the oven.';
+    if(el.closest('#about img'))return 'that\'s Fatima!! the human. the legend. my creator. (she didn\'t make me)';
+    var a=el.closest('a');if(a){var t=a.textContent.trim().replace(/\s+/g,' ').slice(0,40);if(/^mailto:/.test(a.getAttribute('href')||''))return 'her email!! click it. tell her the slime sent you.';if(/linkedin/i.test(a.href))return 'LinkedIn. very professional. I\'m not allowed on there.';if(/behance/i.test(a.href))return 'Behance. more of her stuff. I\'m not on it. yet.';if(/wa\.me|whatsapp/i.test(a.href))return 'WhatsApp her. she replies fast. faster than me.';if(t)return '"'+t+'". it\'s a link. it goes places. unlike me.';}
+    if(el.closest('button'))return 'a button. it does button things. press it.';
+    var im=el.closest('img');if(im&&im.alt)return im.alt.split(',')[0].toLowerCase()+'. she made that. I made nothing.';
+    var h=el.closest('h1,h2');if(h)return 'a very big title. I\'m reading it with my whole body.';
+    return null;}
+  document.addEventListener('mouseover',function(e){if(faint||muted)return;var el=e.target;if(el===cv||el.closest('.fx-pip'))return;var c=el.closest('.work-card,.service-card,.kpi,a,button,img,video,.frame,h1,h2');if(!c||c===hovEl)return;hovEl=c;clearTimeout(hovTimer);hovTimer=setTimeout(function(){var t=explain(c);if(t){lastAct=performance.now();quip(t);}},380);});
+  function size(){var w=cv.clientWidth,h=cv.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+  size();addEventListener('resize',size);
+  var clk=new THREE.Clock(),red=new THREE.Color(0xE0312B);
+  (function loop(){var dt=Math.min(.05,clk.getDelta());T+=dt;if(mixer)mixer.update(dt);
+    if(!bodyMats.length&&slime)slime.traverse(function(c){if(c.isMesh)[].concat(c.material).forEach(function(m){if(m.color&&m.color.getHSL({}).s>.3&&m.color.g>m.color.r){bodyMats.push(m);bodyCol.push(m.color.clone());}})});
+    if(anger&&performance.now()-angerT>5000){anger=Math.max(0,anger-1);angerT=performance.now();}
+    bodyMats.forEach(function(m,i){m.color.copy(bodyCol[i]).lerp(red,Math.min(.85,anger*.24));});
+    sqv+=(-sq*120-sqv*9)*dt;sq+=sqv*dt;
+    if(jy>0||jv>0){jv-=22*dt;jy+=jv*dt;if(jy<=0){jy=0;if(jv<-3){sqv+=Math.min(18,-jv*2.2);}jv=0;}}
+    var stretch=jv*.035;
+    spin+=(spinT-spin)*.08;if(Math.abs(spinT-spin)<.01){spin=0;spinT=0;}
+    shake=Math.max(0,shake-dt);puff=Math.max(0,puff-dt*2.5);
+    if(faint)faintT=Math.min(1,faintT+dt*1.4);else faintT=Math.max(0,faintT-dt*3);
+    if(slime){var r=cv.getBoundingClientRect(),ox=r.left+r.width/2,oy=r.top+r.height*.55;
+      var ty=.85+(cx<0?0:Math.max(-1.1,Math.min(1.1,Math.atan2(cx-ox,320)*1.05))),tp=cy<0?0:Math.max(-.4,Math.min(.25,Math.atan2(cy-oy,520)*.9));
+      yaw+=(ty-yaw)*.18;pitch+=(tp-pitch)*.18;
+      var breathe=Math.sin(T*3.1)*.035+(hoverOn?Math.sin(T*24)*.035:0)+(anger?Math.sin(T*30)*.02*anger:0);
+      var ys=1+breathe+sq*.06+stretch+puff*.25,xs=1-breathe*.7-sq*.05-stretch*.6+puff*.25;
+      var e=faintT*faintT*(3-2*faintT);
+      slime.scale.set(xs*(1+e*.15),ys*(1-e*.45),xs);
+      slime.position.y=jy*.18-e*.15;
+      slime.position.x=Math.sin(T*40)*.06*shake+e*.25;
+      slime.rotation.y=(yaw+spin)*(1-e)+e*.3;
+      tilt+=((pitch+Math.min(.3,scrollV*.005))-tilt)*.15;slime.rotation.x=tilt*(1-e);
+      slime.rotation.z=Math.sin(T*1.7)*.05*(1-e)-e*1.35;
+      scrollV*=.9;}
+    R.render(sc,cam);requestAnimationFrame(loop);})();
+}
+})();
+</script>
+<!-- ===== end add-on ===== -->
